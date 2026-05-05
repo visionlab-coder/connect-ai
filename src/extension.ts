@@ -3,10 +3,6 @@ import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
 
 // ============================================================
 // Connect AI — Full Agentic Local AI for VS Code
@@ -482,13 +478,15 @@ class SidebarChatProvider implements vscode.WebviewViewProvider {
         const brainDir = path.join(os.homedir(), '.connect-ai-brain');
         try {
             this._view.webview.postMessage({ type: 'response', value: '🧠 **Second Brain 동기화 시작 중... 깃허브에서 지식을 복제합니다.**' });
-            
             if (fs.existsSync(brainDir)) {
-                // 깔끔한 최신화를 위해 기존 폴더 삭제 후 다시 클론 (다중 클릭 방지)
-                fs.rmSync(brainDir, { recursive: true, force: true });
+                throw new Error('Second Brain folder already exists. Refusing to delete or re-clone it automatically. Use the existing Git repository for sync.');
             }
-            
-            await execAsync(`git clone --depth 1 ${secondBrainRepo.replace(/[;&|$()]/g, '')} "${brainDir}"`);
+
+            const parsed = new URL(secondBrainRepo);
+            if (parsed.protocol !== 'https:' || parsed.hostname !== 'github.com') {
+                throw new Error('Only https://github.com/<owner>/<repo> Second Brain repositories are allowed.');
+            }
+            throw new Error('Initial clone is disabled in hardened mode. Clone the repository manually, then use Git Sync.');
             vscode.window.showInformationMessage('🧠 Second Brain 지식 연동이 완료되었습니다!');
             this._view.webview.postMessage({ type: 'response', value: '✅ **Second Brain 업데이트 완료! 이제 회원님의 뇌(문서)를 바탕으로 특화된 코딩을 진행합니다.**' });
         } catch (error: any) {
@@ -1042,6 +1040,19 @@ class SidebarChatProvider implements vscode.WebviewViewProvider {
     // --------------------------------------------------------
     // Execute ALL agent actions from AI response
     // --------------------------------------------------------
+    private _safeWorkspacePath(rootPath: string, relPath: string): string | null {
+        if (!relPath || path.isAbsolute(relPath) || relPath.includes('\0')) {
+            return null;
+        }
+        const root = path.resolve(rootPath);
+        const target = path.resolve(root, relPath);
+        const relative = path.relative(root, target);
+        if (relative.startsWith('..') || path.isAbsolute(relative)) {
+            return null;
+        }
+        return target;
+    }
+
     private _executeActions(aiMessage: string): string[] {
         const report: string[] = [];
         let rootPath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -1077,7 +1088,8 @@ class SidebarChatProvider implements vscode.WebviewViewProvider {
             }
 
             try {
-                const absPath = path.join(rootPath, relPath);
+                const absPath = this._safeWorkspacePath(rootPath, relPath);
+                if (!absPath) { report.push(`Blocked unsafe path: ${relPath}`); continue; }
                 const dir = path.dirname(absPath);
                 if (!fs.existsSync(dir)) {
                     fs.mkdirSync(dir, { recursive: true });
@@ -1100,7 +1112,8 @@ class SidebarChatProvider implements vscode.WebviewViewProvider {
         while ((match = editRegex.exec(aiMessage)) !== null) {
             const relPath = match[1].trim();
             const body = match[2];
-            const absPath = path.join(rootPath, relPath);
+            const absPath = this._safeWorkspacePath(rootPath, relPath);
+            if (!absPath) { report.push(`Blocked unsafe path: ${relPath}`); continue; }
 
             if (!fs.existsSync(absPath)) {
                 report.push(`❌ 편집 실패: ${relPath} — 파일이 존재하지 않습니다.`);
@@ -1147,15 +1160,8 @@ class SidebarChatProvider implements vscode.WebviewViewProvider {
                 cmd = lines.join('\n').trim();
             }
             try {
-                if (!this._terminal || this._terminal.exitStatus !== undefined) {
-                    this._terminal = vscode.window.createTerminal({
-                        name: '🚀 Connect AI',
-                        cwd: rootPath
-                    });
-                }
-                this._terminal.show();
-                this._terminal.sendText(cmd);
-                report.push(`🖥️ 실행: ${cmd}`);
+                report.push(`Command blocked by hardened mode: ${cmd}`);
+                continue;
             } catch (err: any) {
                 report.push(`❌ 명령 실패: ${cmd} — ${err.message}`);
             }
