@@ -1,10 +1,15 @@
-# 자동 생성 — Connect AI 1인 기업 모드
-# 시크릿·API 키 보호
+﻿# Connect AI local/private files
 _agents/*/config.md
 
-# 외부 API 응답 캐시 (재현 가능)
+# Runtime cache and temporary output
 _cache/
-
-# 대용량 임시 산출물
 _tmp/
 *.log
+
+# Extension/app build artifacts
+node_modules/
+out/
+*.vsix
+.vscode-test/
+preview.html
+.DS_Store
