@@ -26,7 +26,7 @@ const EXCLUDED_DIRS = new Set([
     '.next', '.cache', '__pycache__', '.DS_Store', 'coverage',
     '.turbo', '.nuxt', '.output', 'vendor', 'target'
 ]);
-const MAX_CONTEXT_SIZE = 8_000; // chars
+const MAX_CONTEXT_SIZE = 6_000; // chars
 
 const SYSTEM_PROMPT = `You are "Connect AI", a premium agentic AI coding assistant running 100% offline on the user's machine.
 

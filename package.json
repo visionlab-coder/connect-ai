@@ -100,12 +100,12 @@
         },
         "connectAiLab.maxContextFiles": {
           "type": "number",
-          "default": 80,
+          "default": 40,
           "description": "프로젝트 컨텍스트에 포함할 최대 파일 수"
         },
         "connectAiLab.requestTimeout": {
           "type": "number",
-          "default": 180,
+          "default": 120,
           "description": "AI 응답 대기 시간 (초, 기본값: 300초)"
         },
         "connectAiLab.secondBrainRepo": {
@@ -115,17 +115,17 @@
         },
         "connectAiLab.numCtx": {
           "type": "number",
-          "default": 4096,
+          "default": 3072,
           "description": "Ollama context window. 4096 is recommended for fast local use on this PC."
         },
         "connectAiLab.numPredict": {
           "type": "number",
-          "default": 1024,
+          "default": 768,
           "description": "Maximum output tokens per response. Lower values improve responsiveness."
         },
         "connectAiLab.keepAlive": {
           "type": "string",
-          "default": "30m",
+          "default": "5m",
           "description": "How long Ollama should keep the model loaded after a request."
         }
       }
