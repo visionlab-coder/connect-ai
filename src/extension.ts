@@ -26,7 +26,7 @@ const EXCLUDED_DIRS = new Set([
     '.next', '.cache', '__pycache__', '.DS_Store', 'coverage',
     '.turbo', '.nuxt', '.output', 'vendor', 'target'
 ]);
-const MAX_CONTEXT_SIZE = 12_000; // chars
+const MAX_CONTEXT_SIZE = 8_000; // chars
 
 const SYSTEM_PROMPT = `You are "Connect AI", a premium agentic AI coding assistant running 100% offline on the user's machine.
 
@@ -662,7 +662,7 @@ class SidebarChatProvider implements vscode.WebviewViewProvider {
         if (!this._view) { return; }
 
         try {
-            const { ollamaBase, defaultModel, timeout } = getConfig();
+            const { ollamaBase, defaultModel, timeout, numCtx, numPredict, keepAlive } = getConfig();
             let isLMStudio = ollamaBase.includes('1234') || ollamaBase.includes('v1');
             let apiUrl = isLMStudio ? `${ollamaBase}/v1/chat/completions` : `${ollamaBase}/api/chat`;
 
@@ -726,7 +726,7 @@ class SidebarChatProvider implements vscode.WebviewViewProvider {
                     model: modelName || defaultModel,
                     messages: reqMessages,
                     stream: true,
-                    max_tokens: 4096, temperature: this._temperature, top_p: this._topP
+                    max_tokens: numPredict, temperature: this._temperature, top_p: this._topP
                 };
                 const response = await axios.post(apiUrl, streamBody, { timeout, responseType: 'stream' });
                 await new Promise<void>((resolve, reject) => {
@@ -757,7 +757,8 @@ class SidebarChatProvider implements vscode.WebviewViewProvider {
                     model: modelName || defaultModel,
                     messages: reqMessages,
                     stream: true,
-                    options: { num_ctx: 16384, num_predict: 4096, temperature: this._temperature, top_p: this._topP, top_k: this._topK }
+                    keep_alive: keepAlive,
+                    options: { num_ctx: numCtx, num_predict: numPredict, temperature: this._temperature, top_p: this._topP, top_k: this._topK }
                 };
                 // Attach images to the last user message for Ollama
                 if (images.length > 0) {
@@ -865,7 +866,7 @@ class SidebarChatProvider implements vscode.WebviewViewProvider {
             this._displayMessages.push({ text: prompt, role: 'user' });
 
             // 4. Call Ollama
-            const { ollamaBase, defaultModel, timeout } = getConfig();
+            const { ollamaBase, defaultModel, timeout, numCtx, numPredict, keepAlive } = getConfig();
 
             // 이번 요청에만 사용할 임시 메시지 배열 생성
             const reqMessages = [...this._chatHistory];
@@ -898,8 +899,8 @@ class SidebarChatProvider implements vscode.WebviewViewProvider {
                 messages: reqMessages,
                 stream: true,
                 ...(isLMStudio 
-                    ? { max_tokens: 4096, temperature: this._temperature, top_p: this._topP } 
-                    : { options: { num_ctx: 16384, num_predict: 4096, temperature: this._temperature, top_p: this._topP, top_k: this._topK } }),
+                    ? { max_tokens: numPredict, temperature: this._temperature, top_p: this._topP } 
+                    : { keep_alive: keepAlive, options: { num_ctx: numCtx, num_predict: numPredict, temperature: this._temperature, top_p: this._topP, top_k: this._topK } }),
             };
 
             // 스트리밍: 웹뷰에 'streamStart' 로 빈 메시지 생성 후 'streamChunk'로 실시간 업데이트
@@ -967,8 +968,8 @@ class SidebarChatProvider implements vscode.WebviewViewProvider {
                     messages: reqMessages,
                     stream: false,
                     ...(isLMStudio 
-                        ? { max_tokens: 4096, temperature: this._temperature, top_p: this._topP } 
-                        : { options: { num_ctx: 16384, num_predict: 4096, temperature: this._temperature, top_p: this._topP, top_k: this._topK } }),
+                        ? { max_tokens: numPredict, temperature: this._temperature, top_p: this._topP } 
+                        : { keep_alive: keepAlive, options: { num_ctx: numCtx, num_predict: numPredict, temperature: this._temperature, top_p: this._topP, top_k: this._topK } }),
                 }, { timeout });
 
                 aiMessage = isLMStudio
